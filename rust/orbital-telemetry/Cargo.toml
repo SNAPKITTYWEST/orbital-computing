@@ -1,0 +1,15 @@
+[package]
+name = "orbital-telemetry"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Frame parsing, validation, and replay buffer for telemetry streams"
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+tracing.workspace = true
+blake3.workspace = true
+parking_lot.workspace = true

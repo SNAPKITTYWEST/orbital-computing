@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PROJECT>
+  <ProjectOptions>
+    <Version Value="12"/>
+    <PathDelim Value="\"/>
+    <PathVariables>
+      <SearchPathVariables Value="EnvironmentVariables"/>
+    </PathVariables>
+    <VersionInfo>
+      <StringFileInfo ProductVersion="1.0.0.0"/>
+      <StringFileInfo FileVersion="1.0.0.0"/>
+    </VersionInfo>
+    <BuildModes Count="2">
+      <Item1 Name="Debug" Default="True"/>
+      <Item2 Name="Release"/>
+    </BuildModes>
+  </ProjectOptions>
+  <CompilerOptions>
+    <Version Value="11"/>
+    <PathDelim Value="\"/>
+    <SearchPaths>
+      <IncludeFiles Value="src"/>
+      <UnitOutputDirectory Value="obj\$(TargetCPU)-$(TargetOS)"/>
+    </SearchPaths>
+    <Parsing>
+      <SyntaxOptions>
+        <SyntaxMode Value="objfpc"/>
+        <AllowLabel Value="False"/>
+      </SyntaxOptions>
+    </Parsing>
+    <CodeGeneration>
+      <RelocatableUnit Value="True"/>
+      <TargetCPU Value="x86_64"/>
+      <TargetOS Value="linux"/>
+      <Optimizations>
+        <OptimizationLevel Value="3"/>
+      </Optimizations>
+    </CodeGeneration>
+    <Linking>
+      <Debugging>
+        <DebugInfoType Value="dsDwarf3"/>
+      </Debugging>
+      <LinkSmart Value="True"/>
+    </Linking>
+  </CompilerOptions>
+  <Files>
+    <Unit0>
+      <Filename Value="src/orbital-main.pas"/>
+      <IsPartOfProject Value="True"/>
+    </Unit0>
+    <Unit1>
+      <Filename Value="src/orbital-hardware.pas"/>
+      <IsPartOfProject Value="True"/>
+    </Unit1>
+    <Unit2>
+      <Filename Value="src/orbital-memory.pas"/>
+      <IsPartOfProject Value="True"/>
+    </Unit2>
+    <Unit3>
+      <Filename Value="src/orbital-runtime.pas"/>
+      <IsPartOfProject Value="True"/>
+    </Unit3>
+    <Unit4>
+      <Filename Value="src/orbital-simulator.pas"/>
+      <IsPartOfProject Value="True"/>
+    </Unit4>
+    <Unit5>
+      <Filename Value="src/orbital-ffi.pas"/>
+      <IsPartOfProject Value="True"/>
+    </Unit5>
+  </Files>
+</PROJECT>

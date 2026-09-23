@@ -1,0 +1,14 @@
+[package]
+name = "orbital-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Central coordinator for Orbital Computing Stack with task lifecycle management"
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+tracing.workspace = true
+parking_lot.workspace = true

@@ -1,0 +1,7 @@
+rust/target/
+*.o
+*.a
+*.ppu
+*.compiled
+*.exe
+.idea/

@@ -1,0 +1,15 @@
+[package]
+name = "orbital-memory"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Deterministic allocator with bounded buffers, ring buffers, and memory integrity checks"
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+tracing.workspace = true
+blake3.workspace = true
+parking_lot.workspace = true

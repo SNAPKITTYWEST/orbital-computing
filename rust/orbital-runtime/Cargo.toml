@@ -1,0 +1,16 @@
+[package]
+name = "orbital-runtime"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Deterministic CPU execution with vector/matrix operations and signal processing kernels"
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+tracing.workspace = true
+ndarray.workspace = true
+parking_lot.workspace = true
+blake3.workspace = true

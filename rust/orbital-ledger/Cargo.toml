@@ -1,0 +1,16 @@
+[package]
+name = "orbital-ledger"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Append-only event store with Blake3 hash chain and checkpoint replay engine"
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+blake3.workspace = true
+parking_lot.workspace = true

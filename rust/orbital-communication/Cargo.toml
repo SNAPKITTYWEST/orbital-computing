@@ -1,0 +1,17 @@
+[package]
+name = "orbital-communication"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Communication layer with compression, integrity verification, and acknowledgement tracking"
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+tracing.workspace = true
+blake3.workspace = true
+parking_lot.workspace = true
+zstd.workspace = true
+flate2.workspace = true

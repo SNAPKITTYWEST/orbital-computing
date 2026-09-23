@@ -1,0 +1,15 @@
+[package]
+name = "orbital-scheduler"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Task scheduler with priority, resource budgets, thermal throttling, and deadline management"
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+tracing.workspace = true
+parking_lot.workspace = true
+crossbeam.workspace = true

@@ -1,0 +1,15 @@
+[package]
+name = "orbital-verification"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Verification engine with invariant checking, redundant execution, and fault detection"
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+tracing.workspace = true
+blake3.workspace = true
+parking_lot.workspace = true
