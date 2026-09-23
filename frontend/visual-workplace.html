@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Orbital View — Solar System 2D</title>
+<style>
+:root {
+  --bg:#000510; --panel:#060d1a; --panel2:#0a1628; --border:#1b3a6a;
+  --txt:#c8d8f0; --dim:#4a6a9a; --cyan:#41d8ff; --blue:#1a9eff;
+  --green:#3dff8f; --yellow:#ffd23d; --red:#ff5060; --mag:#e07bff;
+  --sel:#0d2a52;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);
+  color:var(--txt);font-family:'Segoe UI',ui-sans-serif,system-ui,sans-serif;font-size:12px}
+/* ── LAYOUT ── */
+.app{display:grid;height:100vh;
+  grid-template-rows:44px 1fr 220px;
+  grid-template-columns:130px 1fr 240px;
+  grid-template-areas:
+    "topbar topbar topbar"
+    "sidebar canvas info"
+    "bottombar bottombar bottombar"}
+/* ── TOPBAR ── */
+.topbar{grid-area:topbar;display:flex;align-items:center;gap:0;
+  background:var(--panel);border-bottom:1px solid var(--border);padding:0 14px}
+.logo{display:flex;align-items:center;gap:8px;margin-right:20px}
+.logo-icon{width:32px;height:32px;border-radius:50%;
+  background:radial-gradient(circle at 40% 40%,#1e6aa8,#092040);
+  border:2px solid var(--cyan);display:flex;align-items:center;justify-content:center;
+  font-size:16px}
+.logo-text{line-height:1.2}
+.logo-title{font-size:14px;font-weight:700;letter-spacing:.1em;color:#e8f4ff}
+.logo-sub{font-size:10px;color:var(--dim);letter-spacing:.06em}
+.nav-tabs{display:flex;gap:2px;flex:1}
+.nav-tab{padding:0 16px;height:44px;display:flex;align-items:center;
+  font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--dim);
+  background:none;border:none;cursor:pointer;border-bottom:2px solid transparent;transition:.15s}
+.nav-tab.active{color:var(--cyan);border-bottom-color:var(--cyan);background:rgba(65,216,255,.06)}
+.nav-tab:hover{color:var(--txt)}
+.topbar-right{display:flex;align-items:center;gap:12px;margin-left:auto}
+.time-badge{display:flex;align-items:center;gap:6px;font-size:11px}
+.time-dot{width:8px;height:8px;border-radius:50%;background:var(--green);
+  box-shadow:0 0 6px var(--green)}
+.realtime{font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--yellow);
+  border:1px solid rgba(255,210,61,.4);border-radius:4px;padding:3px 8px;
+  background:rgba(255,210,61,.07)}
+.gear{width:28px;height:28px;display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--dim)}
+/* ── SIDEBAR ── */
+.sidebar{grid-area:sidebar;background:var(--panel);border-right:1px solid var(--border);
+  overflow-y:auto;padding:10px 0}
+.sidebar-section{padding:0 10px;margin-bottom:8px}
+.sidebar-label{font-size:10px;font-weight:700;letter-spacing:.12em;color:var(--dim);
+  padding:6px 10px 4px;text-transform:uppercase}
+.body-row{display:flex;align-items:center;gap:7px;padding:4px 10px;cursor:pointer;
+  border-radius:4px;margin:0 4px;transition:.12s}
+.body-row:hover{background:var(--sel)}
+.body-row.selected{background:var(--sel);border-left:2px solid var(--cyan)}
+.body-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.body-name{font-size:11.5px}
+.layer-row{display:flex;align-items:center;gap:7px;padding:3px 10px;cursor:pointer}
+.layer-cb{width:14px;height:14px;border:1px solid var(--border);border-radius:3px;
+  background:rgba(65,216,255,.15);display:flex;align-items:center;justify-content:center;
+  flex-shrink:0}
+.layer-cb.on{background:var(--blue);border-color:var(--cyan)}
+.layer-cb.on::after{content:'✓';font-size:9px;color:#fff}
+.layer-name{font-size:11px;color:var(--txt)}
+/* ── CANVAS AREA ── */
+.canvas-wrap{grid-area:canvas;position:relative;overflow:hidden;background:#000510}
+#orbitCanvas{display:block;width:100%;height:100%}
+.cockpit-overlay{position:absolute;bottom:0;left:0;right:0;height:130px;
+  background:linear-gradient(to top,#050e1e 0%,rgba(5,14,30,.9) 40%,transparent 100%);
+  pointer-events:none}
+.cockpit-frame{position:absolute;bottom:0;left:0;right:0;height:110px;
+  overflow:hidden;pointer-events:none}
+.cockpit-svg{width:100%;height:100%}
+/* minimap */
+.minimap{position:absolute;top:10px;right:10px;width:80px;height:80px;
+  background:rgba(6,13,26,.85);border:1px solid var(--border);border-radius:4px;
+  display:flex;align-items:center;justify-content:center;overflow:hidden}
+#minimapCanvas{width:80px;height:80px}
+.minimap-btns{position:absolute;top:10px;right:94px;display:flex;flex-direction:column;gap:4px}
+.mini-btn{width:24px;height:24px;background:var(--panel2);border:1px solid var(--border);
+  border-radius:3px;display:flex;align-items:center;justify-content:center;
+  color:var(--dim);cursor:pointer;font-size:14px}
+/* ── INFO PANEL ── */
+.info{grid-area:info;background:var(--panel);border-left:1px solid var(--border);
+  display:flex;flex-direction:column;overflow:hidden}
+.info-minimap{height:90px;background:#000814;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;position:relative}
+#infoMinimap{width:100%;height:90px}
+.info-body{padding:10px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.info-planet-icon{width:44px;height:44px;border-radius:50%;flex-shrink:0;
+  background:radial-gradient(circle at 35% 35%,#4a8fd0,#0d3060);
+  border:2px solid rgba(65,216,255,.3);overflow:hidden;position:relative}
+.info-planet-icon canvas{width:44px;height:44px}
+.info-name{font-size:16px;font-weight:700;color:#eef4ff;letter-spacing:.05em}
+.info-type{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em}
+.info-table{padding:8px 12px;flex:1;overflow-y:auto}
+.info-row{display:flex;justify-content:space-between;padding:4px 0;
+  border-bottom:1px solid rgba(27,58,106,.4)}
+.info-row:last-child{border-bottom:none}
+.info-key{color:var(--dim);font-size:11px}
+.info-val{color:var(--txt);font-size:11px;text-align:right}
+.info-actions{padding:8px 10px;display:grid;grid-template-columns:1fr 1fr;gap:6px;
+  border-top:1px solid var(--border)}
+.act-btn{display:flex;align-items:center;justify-content:center;gap:5px;
+  padding:7px 0;border:1px solid var(--border);border-radius:5px;
+  background:var(--panel2);color:var(--cyan);font-size:10px;font-weight:700;
+  letter-spacing:.08em;cursor:pointer;transition:.15s}
+.act-btn:hover{background:rgba(65,216,255,.1);border-color:var(--cyan)}
+.act-btn svg{width:12px;height:12px}
+/* ── BOTTOM BAR ── */
+.bottombar{grid-area:bottombar;background:var(--panel2);border-top:1px solid var(--border);
+  display:grid;grid-template-columns:300px 1fr 1fr;gap:0;overflow:hidden}
+/* nav section */
+.nav-section{border-right:1px solid var(--border);padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.btm-tabs{display:flex;gap:2px}
+.btm-tab{padding:5px 10px;font-size:10px;font-weight:700;letter-spacing:.08em;
+  background:none;border:none;color:var(--dim);cursor:pointer;border-bottom:2px solid transparent}
+.btm-tab.active{color:var(--cyan);border-bottom-color:var(--cyan)}
+.ctrl-group{display:flex;flex-direction:column;gap:4px}
+.ctrl-label{font-size:9px;font-weight:700;letter-spacing:.1em;color:var(--dim);text-transform:uppercase}
+.ctrl-row{display:flex;gap:5px;flex-wrap:wrap}
+.mode-btn{padding:4px 10px;border-radius:14px;font-size:10px;font-weight:600;
+  border:1px solid var(--border);background:none;color:var(--dim);cursor:pointer}
+.mode-btn.active{background:var(--blue);border-color:var(--cyan);color:#fff}
+.time-btn{padding:3px 8px;border-radius:12px;font-size:10px;border:1px solid var(--border);
+  background:none;color:var(--dim);cursor:pointer}
+.time-btn.active{background:var(--blue);border-color:var(--cyan);color:#fff}
+.keys-grid{display:grid;grid-template-columns:1fr 1fr;gap:2px 14px}
+.key-row{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--dim)}
+.key-badge{background:var(--panel);border:1px solid var(--border);border-radius:3px;
+  padding:1px 5px;font-size:10px;font-weight:700;color:var(--txt)}
+/* radar section */
+.radar-section{border-right:1px solid var(--border);padding:10px 14px;display:flex;gap:14px;align-items:center}
+#radarCanvas{flex-shrink:0}
+.radar-data{display:flex;flex-direction:column;gap:8px;flex:1}
+.rd-group{display:flex;flex-direction:column;gap:2px}
+.rd-label{font-size:9px;font-weight:700;letter-spacing:.1em;color:var(--dim);text-transform:uppercase}
+.rd-val{font-size:18px;font-weight:700;color:var(--cyan);letter-spacing:.02em}
+.rd-val span{font-size:11px;color:var(--dim);margin-left:3px}
+.rd-dist{font-size:13px;font-weight:700;color:var(--txt)}
+.xyz-row{display:flex;gap:8px}
+.xyz-item{display:flex;flex-direction:column}
+.xyz-axis{font-size:9px;color:var(--dim)}
+.xyz-num{font-size:10px;color:var(--txt)}
+.target-box{border:1px solid var(--border);border-radius:5px;padding:5px 10px;
+  display:flex;align-items:center;gap:8px;background:var(--panel)}
+.target-label{font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.1em}
+.target-name{font-size:12px;font-weight:700;color:var(--txt)}
+/* telemetry section */
+.telem-section{padding:8px 12px;display:flex;flex-direction:column;gap:6px;overflow:hidden}
+.btm-tabs2{display:flex;gap:2px;margin-bottom:4px}
+.telem-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;flex:1}
+.telem-block{display:flex;flex-direction:column;gap:3px}
+.telem-key{font-size:9px;font-weight:700;letter-spacing:.08em;color:var(--cyan);text-transform:uppercase}
+.telem-val{font-size:11px;color:var(--txt)}
+.telem-sub{font-size:10px;color:var(--dim)}
+.orbit-path-mini{border:1px solid var(--border);border-radius:4px;background:var(--panel);
+  padding:4px 8px;display:flex;align-items:center;gap:10px;margin-top:4px}
+#orbitMini{flex-shrink:0}
+.op-labels{display:flex;flex-direction:column;gap:2px}
+.op-label{font-size:9px;display:flex;align-items:center;gap:5px;color:var(--dim)}
+.op-dot{width:8px;height:3px;border-radius:2px}
+/* scrollbar */
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ── TOP BAR ── -->
+<header class="topbar">
+  <div class="logo">
+    <div class="logo-icon">🌍</div>
+    <div class="logo-text">
+      <div class="logo-title">ORBITAL VIEW</div>
+      <div class="logo-sub">SOLAR SYSTEM — 2D</div>
+    </div>
+  </div>
+  <nav class="nav-tabs">
+    <button class="nav-tab active">SOLAR SYSTEM</button>
+    <button class="nav-tab">ORBITAL MAP</button>
+    <button class="nav-tab">TRAJECTORY</button>
+    <button class="nav-tab">SIMULATION</button>
+    <button class="nav-tab">TELEMETRY</button>
+    <button class="nav-tab">DATA LAYERS</button>
+  </nav>
+  <div class="topbar-right">
+    <div class="time-badge">
+      <div class="time-dot"></div>
+      <span id="utcClock">2026-09-23 14:27:16 UTC</span>
+    </div>
+    <div class="realtime">REAL TIME</div>
+    <div class="gear">⚙</div>
+  </div>
+</header>
+
+<!-- ── SIDEBAR ── -->
+<aside class="sidebar">
+  <div class="sidebar-label">BODIES</div>
+  <div id="bodyList"></div>
+  <div class="sidebar-label" style="margin-top:8px">LAYERS</div>
+  <div id="layerList"></div>
+</aside>
+
+<!-- ── CANVAS ── -->
+<main class="canvas-wrap">
+  <canvas id="orbitCanvas"></canvas>
+  <div class="cockpit-frame">
+    <svg class="cockpit-svg" viewBox="0 0 1000 110" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="cg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#0a1a30" stop-opacity="0"/>
+          <stop offset="60%" stop-color="#050e1c" stop-opacity="1"/>
+        </linearGradient>
+        <linearGradient id="glowH" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#041224" stop-opacity="0"/>
+          <stop offset="30%" stop-color="#1a9eff" stop-opacity="0.6"/>
+          <stop offset="50%" stop-color="#41d8ff" stop-opacity="0.9"/>
+          <stop offset="70%" stop-color="#1a9eff" stop-opacity="0.6"/>
+          <stop offset="100%" stop-color="#041224" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <!-- cockpit body -->
+      <path d="M0 110 L0 70 Q50 55 150 60 Q300 68 500 50 Q700 68 850 60 Q950 55 1000 70 L1000 110 Z" fill="url(#cg)"/>
+      <path d="M0 110 L0 72 Q50 57 150 62 Q300 70 500 52 Q700 70 850 62 Q950 57 1000 72 L1000 110 Z" fill="#040d1a"/>
+      <!-- glow line -->
+      <rect x="0" y="50" width="1000" height="2" fill="url(#glowH)" opacity="0.7"/>
+      <!-- instrument bumps -->
+      <ellipse cx="500" cy="75" rx="120" ry="18" fill="#060f1e" stroke="#1b3a6a" stroke-width="1"/>
+      <ellipse cx="220" cy="85" rx="60" ry="12" fill="#060f1e" stroke="#1b3a6a" stroke-width="1"/>
+      <ellipse cx="780" cy="85" rx="60" ry="12" fill="#060f1e" stroke="#1b3a6a" stroke-width="1"/>
+      <!-- accent dots -->
+      <circle cx="460" cy="75" r="3" fill="#1a9eff" opacity="0.8"/>
+      <circle cx="540" cy="75" r="3" fill="#1a9eff" opacity="0.8"/>
+      <circle cx="500" cy="72" r="2" fill="#41d8ff"/>
+      <!-- side vents -->
+      <rect x="30" y="78" width="40" height="3" rx="1" fill="#1a9eff" opacity="0.4"/>
+      <rect x="30" y="84" width="30" height="2" rx="1" fill="#1a9eff" opacity="0.25"/>
+      <rect x="930" y="78" width="40" height="3" rx="1" fill="#1a9eff" opacity="0.4"/>
+      <rect x="940" y="84" width="30" height="2" rx="1" fill="#1a9eff" opacity="0.25"/>
+    </svg>
+  </div>
+  <div class="minimap-btns">
+    <div class="mini-btn">+</div>
+    <div class="mini-btn">−</div>
+    <div class="mini-btn">⛶</div>
+  </div>
+  <div class="minimap"><canvas id="minimapCanvas" width="80" height="80"></canvas></div>
+</main>
+
+<!-- ── INFO PANEL ── -->
+<aside class="info">
+  <div class="info-minimap"><canvas id="infoMinimap" width="240" height="90"></canvas></div>
+  <div class="info-body">
+    <canvas id="planetIcon" width="44" height="44" style="border-radius:50%;border:2px solid rgba(65,216,255,.3)"></canvas>
+    <div>
+      <div class="info-name" id="infoName">EARTH</div>
+      <div class="info-type" id="infoType">Planet</div>
+    </div>
+  </div>
+  <div class="info-table" id="infoTable"></div>
+  <div class="info-actions">
+    <div class="act-btn">⊕ FOCUS</div>
+    <div class="act-btn">⤿ TRACK</div>
+    <div class="act-btn">○ ORBIT</div>
+    <div class="act-btn">✦ DETAILS</div>
+  </div>
+</aside>
+
+<!-- ── BOTTOM BAR ── -->
+<footer class="bottombar">
+  <!-- nav controls -->
+  <div class="nav-section">
+    <div class="btm-tabs">
+      <button class="btm-tab active">NAVIGATION</button>
+      <button class="btm-tab">CAMERA</button>
+      <button class="btm-tab">VIEW</button>
+      <button class="btm-tab">TIME</button>
+    </div>
+    <div class="ctrl-group">
+      <div class="ctrl-label">VIEW MODE</div>
+      <div class="ctrl-row">
+        <button class="mode-btn active">● First Person</button>
+        <button class="mode-btn">⇌ Chase</button>
+        <button class="mode-btn">↓ Top Down</button>
+        <button class="mode-btn">⊡ Free Camera</button>
+      </div>
+    </div>
+    <div class="ctrl-group">
+      <div class="ctrl-label">TIME SCALE</div>
+      <div class="ctrl-row">
+        <button class="time-btn active">● Real Time</button>
+        <button class="time-btn">▷ 10×</button>
+        <button class="time-btn">▷ 100×</button>
+        <button class="time-btn">▷ 1,000×</button>
+        <button class="time-btn">▷ 10,000×</button>
+      </div>
+    </div>
+    <div class="ctrl-group">
+      <div class="ctrl-label">CAMERA CONTROLS</div>
+      <div class="keys-grid">
+        <div class="key-row"><span class="key-badge">W</span> Forward</div>
+        <div class="key-row"><span class="key-badge">A</span> Left</div>
+        <div class="key-row"><span class="key-badge">S</span> Backward</div>
+        <div class="key-row"><span class="key-badge">D</span> Right</div>
+        <div class="key-row"><span class="key-badge">Q</span> Up</div>
+        <div class="key-row">🖱 Look</div>
+        <div class="key-row"><span class="key-badge">E</span> Down</div>
+        <div class="key-row">🖱 Zoom</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- radar -->
+  <div class="radar-section">
+    <canvas id="radarCanvas" width="140" height="140"></canvas>
+    <div class="radar-data">
+      <div class="rd-group">
+        <div class="rd-label">SPEED</div>
+        <div class="rd-val" id="speedVal">0.0 <span>km/s</span></div>
+        <div style="font-size:9px;color:var(--blue)">lkes</div>
+      </div>
+      <div class="rd-group">
+        <div class="rd-label">DISTANCE TO EARTH</div>
+        <div class="rd-dist" id="distVal">0.0 km</div>
+      </div>
+      <div class="xyz-row">
+        <div class="xyz-item"><span class="xyz-axis">X</span><span class="xyz-num" id="xVal">1.000 AU</span></div>
+        <div class="xyz-item"><span class="xyz-axis">Y</span><span class="xyz-num" id="yVal">0.000 AU</span></div>
+        <div class="xyz-item"><span class="xyz-axis">Z</span><span class="xyz-num" id="zVal">0.000 AU</span></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div class="rd-label">SELECTED TARGET</div>
+      <div class="target-box">
+        <canvas id="targetIcon" width="28" height="28" style="border-radius:50%"></canvas>
+        <div class="target-name" id="targetName">Earth</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- telemetry -->
+  <div class="telem-section">
+    <div class="btm-tabs2">
+      <button class="btm-tab active" style="font-size:10px">TRAJECTORY</button>
+      <button class="btm-tab" style="font-size:10px">TELEMETRY</button>
+      <button class="btm-tab" style="font-size:10px">SIMULATION</button>
+      <button class="btm-tab" style="font-size:10px">EXPORT</button>
+    </div>
+    <div class="telem-grid">
+      <div class="telem-block">
+        <div class="telem-key">CURRENT POSITION</div>
+        <div class="telem-val">Heliocentric View</div>
+        <div class="telem-sub" id="telemSpeed">0.0 km/s</div>
+      </div>
+      <div class="telem-block">
+        <div class="telem-key">COORDINATES (AU)</div>
+        <div class="telem-val" id="telemCoords">X 0.000  Y 0.000</div>
+        <div class="telem-sub" id="telemZ">Z 0.000</div>
+      </div>
+      <div class="telem-block">
+        <div class="telem-key">DISTANCE TO SUN</div>
+        <div class="telem-val" id="distSun">0.0 AU</div>
+      </div>
+      <div class="telem-block">
+        <div class="telem-key">DISTANCE TO EARTH</div>
+        <div class="telem-val" id="distEarth">0.0 AU</div>
+      </div>
+    </div>
+    <div class="orbit-path-mini">
+      <canvas id="orbitMini" width="70" height="50"></canvas>
+      <div class="op-labels">
+        <div class="op-label" style="color:#ffd23d"><span class="op-dot" style="background:#ffd23d"></span>INNER PLANETS</div>
+        <div class="op-label" style="color:#41d8ff"><span class="op-dot" style="background:#41d8ff"></span>OUTER PLANETS</div>
+        <div class="op-label" style="color:#8888aa"><span class="op-dot" style="background:#8888aa"></span>DWARF PLANETS</div>
+      </div>
+    </div>
+  </div>
+</footer>
+</div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────────
+const BODIES = [
+  {name:'Sun',    color:'#ffdd44',glow:'#ff8800',r:14, au:0,    period:0,     type:'Star',     moon:false},
+  {name:'Mercury',color:'#a0a0a0',glow:null,     r:4,  au:.387, period:87.97, type:'Planet',   moon:false},
+  {name:'Venus',  color:'#e8a060',glow:null,     r:6,  au:.723, period:224.7, type:'Planet',   moon:false},
+  {name:'Earth',  color:'#3a8fd0',glow:null,     r:6,  au:1.0,  period:365.25,type:'Planet',   moon:true },
+  {name:'Moon',   color:'#888899',glow:null,     r:3,  au:1.003,period:27.32, type:'Moon',     moon:false,parent:3},
+  {name:'Mars',   color:'#cc5533',glow:null,     r:5,  au:1.524,period:687.0, type:'Planet',   moon:false},
+  {name:'Jupiter',color:'#c08040',glow:null,     r:11, au:5.203,period:4331,  type:'Planet',   moon:false},
+  {name:'Saturn', color:'#d4b060',glow:null,     r:9,  au:9.537,period:10747, type:'Planet',   rings:true,moon:false},
+  {name:'Uranus', color:'#40c8c8',glow:null,     r:7,  au:19.19,period:30589, type:'Planet',   moon:false},
+  {name:'Neptune',color:'#3050d0',glow:null,     r:7,  au:30.07,period:59800, type:'Planet',   moon:false},
+  {name:'Pluto',  color:'#b09080',glow:null,     r:3,  au:39.48,period:90560, type:'Dwarf',    moon:false},
+  {name:'Ceres',  color:'#909090',glow:null,     r:3,  au:2.77, period:1682,  type:'Dwarf',    moon:false},
+  {name:'Vesta',  color:'#808888',glow:null,     r:3,  au:2.36, period:1325,  type:'Asteroid', moon:false},
+  {name:'Pallas', color:'#788080',glow:null,     r:3,  au:2.77, period:1687,  type:'Asteroid', moon:false},
+  {name:'Hygiea', color:'#707878',glow:null,     r:3,  au:3.14, period:2033,  type:'Asteroid', moon:false},
+  {name:'Eris',   color:'#ccccdd',glow:null,     r:3,  au:67.7, period:203830,type:'Dwarf',    moon:false},
+  {name:'Haumea', color:'#ddddee',glow:null,     r:3,  au:43.1, period:103410,type:'Dwarf',    moon:false},
+  {name:'Makemake',color:'#e09060',glow:null,    r:3,  au:45.8, period:112897,type:'Dwarf',    moon:false},
+  {name:'Sedna',  color:'#cc6644',glow:null,     r:3,  au:506,  period:4404480,type:'Dwarf',   moon:false},
+];
+
+const INFO = {
+  'Sun':    {Radius:'695,700 km',Mass:'1.989 × 10³⁰ kg','Orbit Distance':'0.000 AU','Surface Temp':'5,778 K'},
+  'Mercury':{Radius:'2,440 km',  Mass:'3.301 × 10²³ kg','Orbit Distance':'0.387 AU','Orbital Period':'87.97 days','Rotational Period':'1,408 hours',Moons:'0','Inclination':'7.005°'},
+  'Venus':  {Radius:'6,052 km',  Mass:'4.867 × 10²⁴ kg','Orbit Distance':'0.723 AU','Orbital Period':'224.7 days','Rotational Period':'5,832 hours',Moons:'0','Inclination':'3.394°'},
+  'Earth':  {Radius:'6,371 km',  Mass:'5.972 × 10²⁴ kg','Orbit Distance':'1.000 AU','Orbital Period':'365.25 days','Rotational Period':'23.93 hours',Moons:'1','Inclination':'0.000°'},
+  'Moon':   {Radius:'1,737 km',  Mass:'7.342 × 10²² kg','Orbit Distance':'0.003 AU','Orbital Period':'27.32 days','Rotational Period':'655.7 hours',Moons:'0','Inclination':'5.145°'},
+  'Mars':   {Radius:'3,390 km',  Mass:'6.417 × 10²³ kg','Orbit Distance':'1.524 AU','Orbital Period':'687.0 days','Rotational Period':'24.62 hours',Moons:'2','Inclination':'1.850°'},
+  'Jupiter':{Radius:'69,911 km', Mass:'1.898 × 10²⁷ kg','Orbit Distance':'5.203 AU','Orbital Period':'4,331 days','Rotational Period':'9.925 hours',Moons:'95','Inclination':'1.305°'},
+  'Saturn': {Radius:'58,232 km', Mass:'5.683 × 10²⁶ kg','Orbit Distance':'9.537 AU','Orbital Period':'10,747 days','Rotational Period':'10.66 hours',Moons:'146','Inclination':'2.485°'},
+  'Uranus': {Radius:'25,362 km', Mass:'8.681 × 10²⁵ kg','Orbit Distance':'19.19 AU','Orbital Period':'30,589 days','Rotational Period':'17.24 hours',Moons:'28','Inclination':'0.773°'},
+  'Neptune':{Radius:'24,622 km', Mass:'1.024 × 10²⁶ kg','Orbit Distance':'30.07 AU','Orbital Period':'59,800 days','Rotational Period':'16.11 hours',Moons:'16','Inclination':'1.769°'},
+  'Pluto':  {Radius:'1,188 km',  Mass:'1.303 × 10²² kg','Orbit Distance':'39.48 AU','Orbital Period':'90,560 days','Rotational Period':'153.3 hours',Moons:'5','Inclination':'17.14°'},
+};
+
+const LAYERS = ['Orbits','Planets','Dwarf Planets','Moons','Asteroid Belt','Kuiper Belt','Labels','Grid'];
+let layerState = Object.fromEntries(LAYERS.map(l=>[l,true]));
+let selected = 3; // Earth
+let simTime = 0;
+let phases = BODIES.map(()=>Math.random()*Math.PI*2);
+let scale = 1.0;
+
+// ── BUILD SIDEBAR ─────────────────────────────────────────────────────────────
+const bodyListEl = document.getElementById('bodyList');
+BODIES.forEach((b,i)=>{
+  const row = document.createElement('div');
+  row.className = 'body-row' + (i===selected?' selected':'');
+  row.innerHTML = `<div class="body-dot" style="background:${b.color}"></div><span class="body-name">${b.name}</span>`;
+  row.addEventListener('click',()=>selectBody(i));
+  bodyListEl.appendChild(row);
+});
+
+const layerListEl = document.getElementById('layerList');
+LAYERS.forEach(l=>{
+  const row = document.createElement('div');
+  row.className = 'layer-row';
+  row.innerHTML = `<div class="layer-cb on" id="lcb-${l.replace(/ /g,'_')}"></div><span class="layer-name">${l}</span>`;
+  row.addEventListener('click',()=>{
+    layerState[l] = !layerState[l];
+    document.getElementById('lcb-'+l.replace(/ /g,'_')).className = 'layer-cb' + (layerState[l]?' on':'');
+  });
+  layerListEl.appendChild(row);
+});
+
+function selectBody(i){
+  selected = i;
+  document.querySelectorAll('.body-row').forEach((r,j)=>r.className='body-row'+(j===i?' selected':''));
+  updateInfo();
+  drawPlanetIcon(document.getElementById('planetIcon'),BODIES[i]);
+  drawPlanetIcon(document.getElementById('targetIcon'),BODIES[i]);
+  document.getElementById('infoName').textContent = BODIES[i].name.toUpperCase();
+  document.getElementById('infoType').textContent = BODIES[i].type;
+  document.getElementById('targetName').textContent = BODIES[i].name;
+}
+
+function updateInfo(){
+  const b = BODIES[selected];
+  const data = INFO[b.name] || {};
+  const table = document.getElementById('infoTable');
+  table.innerHTML = Object.entries(data).map(([k,v])=>
+    `<div class="info-row"><span class="info-key">${k}</span><span class="info-val">${v}</span></div>`
+  ).join('');
+}
+
+// ── PLANET ICON ───────────────────────────────────────────────────────────────
+function drawPlanetIcon(canvas,b){
+  const ctx=canvas.getContext('2d'), s=canvas.width, r=s/2-2;
+  ctx.clearRect(0,0,s,s);
+  const g=ctx.createRadialGradient(s*.38,s*.35,1,s/2,s/2,r);
+  g.addColorStop(0,'#ffffff44');
+  g.addColorStop(.3,b.color);
+  g.addColorStop(1,'#000000aa');
+  ctx.beginPath(); ctx.arc(s/2,s/2,r,0,Math.PI*2);
+  ctx.fillStyle=g; ctx.fill();
+  if(b.name==='Earth'){
+    ctx.beginPath(); ctx.arc(s*.55,s*.42,r*.38,0,Math.PI*2);
+    ctx.fillStyle='rgba(60,160,60,.6)'; ctx.fill();
+  }
+  if(b.glow){
+    ctx.beginPath(); ctx.arc(s/2,s/2,r+2,0,Math.PI*2);
+    ctx.strokeStyle=b.glow; ctx.lineWidth=3; ctx.globalAlpha=.4; ctx.stroke();
+    ctx.globalAlpha=1;
+  }
+}
+
+// ── MAIN CANVAS ───────────────────────────────────────────────────────────────
+const canvas = document.getElementById('orbitCanvas');
+const ctx = canvas.getContext('2d');
+let stars = [];
+
+function initStars(){
+  stars=[];
+  for(let i=0;i<400;i++) stars.push({
+    x:Math.random(),y:Math.random(),
+    r:Math.random()*1.4+.2,
+    a:Math.random()*.7+.3
+  });
+}
+initStars();
+
+function resize(){
+  const wrap = canvas.parentElement;
+  canvas.width = wrap.clientWidth;
+  canvas.height = wrap.clientHeight;
+}
+resize();
+new ResizeObserver(resize).observe(canvas.parentElement);
+
+// Map AU to pixels — perspective tilt
+function orbitPos(au, angle, cx, cy, w, h){
+  // max AU we display = 45 (Eris belt)
+  const maxAU = 45;
+  const rx = Math.min(w,h)*.46 * (au/maxAU) * scale;
+  const ry = rx * 0.55; // perspective tilt
+  return {
+    x: cx + rx * Math.cos(angle),
+    y: cy + ry * Math.sin(angle),
+    rx, ry
+  };
+}
+
+function drawFrame(){
+  const W=canvas.width, H=canvas.height;
+  const cx=W/2, cy=H*0.48;
+  ctx.clearRect(0,0,W,H);
+
+  // starfield
+  stars.forEach(s=>{
+    ctx.beginPath();
+    ctx.arc(s.x*W,s.y*H,s.r,0,Math.PI*2);
+    ctx.fillStyle=`rgba(200,220,255,${s.a})`;
+    ctx.fill();
+  });
+
+  // grid
+  if(layerState['Grid']){
+    ctx.strokeStyle='rgba(26,58,106,.25)'; ctx.lineWidth=1;
+    for(let i=1;i<=10;i++){
+      ctx.beginPath(); ctx.arc(cx,cy,Math.min(W,H)*.46*(i/10)*scale,0,Math.PI*2);
+      ctx.stroke();
+    }
+    for(let a=0;a<360;a+=30){
+      const rad=a*Math.PI/180;
+      ctx.beginPath();
+      ctx.moveTo(cx,cy);
+      ctx.lineTo(cx+Math.cos(rad)*Math.min(W,H)*.5,cy+Math.sin(rad)*Math.min(W,H)*.5);
+      ctx.stroke();
+    }
+  }
+
+  const maxAU=45;
+  const scPx = Math.min(W,H)*.46/maxAU * scale;
+
+  // orbit rings
+  if(layerState['Orbits']){
+    BODIES.forEach((b,i)=>{
+      if(b.au===0||b.parent) return;
+      if(!layerState['Planets']&&b.type==='Planet') return;
+      if(!layerState['Dwarf Planets']&&b.type==='Dwarf') return;
+      if(!layerState['Moons']&&b.type==='Moon') return;
+      if(!layerState['Asteroid Belt']&&(b.name==='Ceres'||b.name==='Vesta'||b.name==='Pallas'||b.name==='Hygiea')) return;
+      const rx=b.au*scPx, ry=rx*.55;
+      ctx.beginPath();
+      ctx.ellipse(cx,cy,rx,ry,0,0,Math.PI*2);
+      let oc = 'rgba(40,80,140,.35)';
+      if(b.type==='Dwarf') oc='rgba(80,80,120,.25)';
+      if(i===selected) oc='rgba(65,216,255,.55)';
+      ctx.strokeStyle=oc; ctx.lineWidth=i===selected?1.5:1;
+      ctx.stroke();
+    });
+  }
+
+  // asteroid belt
+  if(layerState['Asteroid Belt']){
+    const beltAU=2.7, beltW=0.6;
+    for(let i=0;i<360;i+=2){
+      const a=i*Math.PI/180;
+      const d=(beltAU+(Math.random()-.5)*beltW)*scPx;
+      const dy=d*.55;
+      const x=cx+d*Math.cos(a), y=cy+dy*Math.sin(a);
+      ctx.beginPath(); ctx.arc(x,y,Math.random()*.8+.3,0,Math.PI*2);
+      ctx.fillStyle=`rgba(200,160,80,${Math.random()*.4+.1})`;
+      ctx.fill();
+    }
+  }
+
+  // Kuiper belt
+  if(layerState['Kuiper Belt']){
+    for(let i=0;i<200;i++){
+      const a=Math.random()*Math.PI*2;
+      const d=(35+Math.random()*10)*scPx;
+      const dy=d*.55;
+      ctx.beginPath(); ctx.arc(cx+d*Math.cos(a),cy+dy*Math.sin(a),.5,0,Math.PI*2);
+      ctx.fillStyle='rgba(150,160,200,.2)'; ctx.fill();
+    }
+  }
+
+  // draw bodies
+  BODIES.forEach((b,i)=>{
+    if(!layerState['Planets']&&b.type==='Planet') return;
+    if(!layerState['Dwarf Planets']&&b.type==='Dwarf') return;
+    if(!layerState['Moons']&&b.type==='Moon') return;
+
+    let bx,by;
+    if(b.au===0){ bx=cx; by=cy; }
+    else if(b.parent!==undefined){
+      // Moon orbits Earth
+      const earth=BODIES[b.parent];
+      const angle=phases[b.parent]+simTime/earth.period*Math.PI*2;
+      const ep=orbitPos(earth.au,angle,cx,cy,W,H);
+      const moonAngle=phases[i]+simTime/b.period*Math.PI*2;
+      bx=ep.x+Math.cos(moonAngle)*22;
+      by=ep.y+Math.sin(moonAngle)*12;
+    } else {
+      const angle=phases[i]+simTime/b.period*Math.PI*2;
+      const pos=orbitPos(b.au,angle,cx,cy,W,H);
+      bx=pos.x; by=pos.y;
+    }
+
+    // store position for click detection
+    b._x=bx; b._y=by;
+
+    // glow (Sun)
+    if(b.glow){
+      const g=ctx.createRadialGradient(bx,by,0,bx,by,b.r*4);
+      g.addColorStop(0,b.glow+'cc');
+      g.addColorStop(.4,b.glow+'44');
+      g.addColorStop(1,b.glow+'00');
+      ctx.beginPath(); ctx.arc(bx,by,b.r*4,0,Math.PI*2);
+      ctx.fillStyle=g; ctx.fill();
+    }
+
+    // selection ring
+    if(i===selected){
+      ctx.beginPath(); ctx.arc(bx,by,b.r+5,0,Math.PI*2);
+      ctx.strokeStyle='rgba(65,216,255,.7)'; ctx.lineWidth=1.5; ctx.stroke();
+      ctx.beginPath(); ctx.arc(bx,by,b.r+9,0,Math.PI*2);
+      ctx.strokeStyle='rgba(65,216,255,.3)'; ctx.lineWidth=1; ctx.stroke();
+    }
+
+    // Saturn rings
+    if(b.rings){
+      ctx.save();
+      ctx.translate(bx,by);
+      ctx.scale(1,.45);
+      ctx.beginPath();
+      ctx.arc(0,0,b.r*2.2,0,Math.PI*2);
+      ctx.strokeStyle='rgba(210,180,100,.5)'; ctx.lineWidth=4; ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0,0,b.r*2.7,0,Math.PI*2);
+      ctx.strokeStyle='rgba(210,180,100,.25)'; ctx.lineWidth=3; ctx.stroke();
+      ctx.restore();
+    }
+
+    // body circle
+    const g2=ctx.createRadialGradient(bx-b.r*.3,by-b.r*.3,b.r*.1,bx,by,b.r);
+    g2.addColorStop(0,'#ffffff55');
+    g2.addColorStop(.4,b.color);
+    g2.addColorStop(1,'#00000088');
+    ctx.beginPath(); ctx.arc(bx,by,b.r,0,Math.PI*2);
+    ctx.fillStyle=g2; ctx.fill();
+
+    // Earth continents
+    if(b.name==='Earth'){
+      ctx.save(); ctx.clip();
+      ctx.beginPath(); ctx.arc(bx+b.r*.2,by-b.r*.1,b.r*.5,0,Math.PI*2);
+      ctx.fillStyle='rgba(50,130,50,.65)'; ctx.fill();
+      ctx.restore();
+    }
+
+    // label
+    if(layerState['Labels']&&(b.au<32||b.au===0||(selected===i))){
+      ctx.font='11px "Segoe UI",sans-serif';
+      ctx.fillStyle = i===selected?'#41d8ff':'rgba(200,220,255,.8)';
+      ctx.fillText(b.name, bx+b.r+4, by-b.r+2);
+    }
+  });
+}
+
+// ── MINIMAP ───────────────────────────────────────────────────────────────────
+function drawMinimap(){
+  const mc=document.getElementById('minimapCanvas');
+  const mx=mc.getContext('2d'); const S=80;
+  mx.clearRect(0,0,S,S);
+  mx.fillStyle='#000810'; mx.fillRect(0,0,S,S);
+  // inner planets in minimap
+  [1,2,3,5,6,7,8,9,10].forEach(i=>{
+    const b=BODIES[i]; if(b.au>35) return;
+    const scale2=S*.44/35;
+    const angle=phases[i]+simTime/b.period*Math.PI*2;
+    const rx=b.au*scale2, ry=rx*.6;
+    mx.beginPath(); mx.ellipse(S/2,S/2,rx,ry,0,0,Math.PI*2);
+    mx.strokeStyle='rgba(30,80,150,.5)'; mx.lineWidth=.5; mx.stroke();
+    mx.beginPath(); mx.arc(S/2+rx*Math.cos(angle),S/2+ry*Math.sin(angle),2,0,Math.PI*2);
+    mx.fillStyle=b.color; mx.fill();
+  });
+  // Sun
+  mx.beginPath(); mx.arc(S/2,S/2,3,0,Math.PI*2);
+  mx.fillStyle='#ffdd44'; mx.fill();
+  // selection box
+  mx.strokeStyle='rgba(65,216,255,.6)'; mx.lineWidth=1;
+  mx.strokeRect(S*.2,S*.2,S*.6,S*.6);
+}
+
+// ── INFO MINIMAP ──────────────────────────────────────────────────────────────
+function drawInfoMinimap(){
+  const ic=document.getElementById('infoMinimap');
+  const ix=ic.getContext('2d'); const W=240,H=90;
+  ix.clearRect(0,0,W,H);
+  ix.fillStyle='#000812'; ix.fillRect(0,0,W,H);
+  const cx=W/2,cy=H*.55;
+  // orbit of selected
+  const b=BODIES[selected];
+  if(b.au>0){
+    const sc=Math.min(W,H)*.4/Math.max(b.au*1.2,1);
+    ix.beginPath(); ix.ellipse(cx,cy,b.au*sc,b.au*sc*.55,0,0,Math.PI*2);
+    ix.strokeStyle='rgba(65,216,255,.4)'; ix.lineWidth=1; ix.stroke();
+    const angle=phases[selected]+simTime/b.period*Math.PI*2;
+    ix.beginPath(); ix.arc(cx+b.au*sc*Math.cos(angle),cy+b.au*sc*.55*Math.sin(angle),4,0,Math.PI*2);
+    ix.fillStyle=b.color; ix.fill();
+  }
+  ix.beginPath(); ix.arc(cx,cy,4,0,Math.PI*2);
+  ix.fillStyle='#ffdd44'; ix.fill();
+  // glow
+  ix.beginPath(); ix.arc(cx,cy,10,0,Math.PI*2);
+  const gg=ix.createRadialGradient(cx,cy,0,cx,cy,10);
+  gg.addColorStop(0,'rgba(255,200,0,.4)'); gg.addColorStop(1,'transparent');
+  ix.fillStyle=gg; ix.fill();
+}
+
+// ── ORBIT MINI ────────────────────────────────────────────────────────────────
+function drawOrbitMini(){
+  const oc=document.getElementById('orbitMini');
+  const ox=oc.getContext('2d'); const W=70,H=50,cx=W/2,cy=H/2;
+  ox.clearRect(0,0,W,H);
+  ox.fillStyle='#000812'; ox.fillRect(0,0,W,H);
+  // rings
+  [[1.5,'#ffd23d'],[5,'#41d8ff'],[12,'#6666aa']].forEach(([au,c])=>{
+    const r=au*(W*.35/12);
+    ox.beginPath(); ox.arc(cx,cy,r,0,Math.PI*2);
+    ox.strokeStyle=c+'88'; ox.lineWidth=1; ox.stroke();
+  });
+  ox.beginPath(); ox.arc(cx,cy,2,0,Math.PI*2);
+  ox.fillStyle='#ffdd44'; ox.fill();
+}
+
+// ── RADAR ─────────────────────────────────────────────────────────────────────
+function drawRadar(t){
+  const rc=document.getElementById('radarCanvas');
+  const rx=rc.getContext('2d'); const S=140, cx=S/2,cy=S/2;
+  rx.clearRect(0,0,S,S);
+  // background
+  rx.fillStyle='#000c1a'; rx.beginPath(); rx.arc(cx,cy,cx-2,0,Math.PI*2); rx.fill();
+  rx.strokeStyle='rgba(26,154,255,.2)'; rx.lineWidth=1;
+  [.25,.5,.75,1].forEach(f=>{
+    rx.beginPath(); rx.arc(cx,cy,(cx-2)*f,0,Math.PI*2); rx.stroke();
+  });
+  for(let a=0;a<360;a+=30){
+    const r=a*Math.PI/180;
+    rx.beginPath(); rx.moveTo(cx,cy);
+    rx.lineTo(cx+Math.cos(r)*(cx-2),cy+Math.sin(r)*(cx-2)); rx.stroke();
+  }
+  // sweep
+  const sweepAngle=(t*.001)%(Math.PI*2);
+  const sg=rx.createConicalGradient?null:null; // fallback
+  rx.save();
+  rx.translate(cx,cy);
+  rx.rotate(sweepAngle);
+  const grad=rx.createLinearGradient(0,-(cx-2),0,0);
+  grad.addColorStop(0,'rgba(65,216,255,0)');
+  grad.addColorStop(.7,'rgba(65,216,255,.08)');
+  grad.addColorStop(1,'rgba(65,216,255,.4)');
+  rx.beginPath(); rx.moveTo(0,0); rx.arc(0,0,cx-2,-Math.PI*.25,0); rx.closePath();
+  rx.fillStyle=grad; rx.fill();
+  rx.restore();
+  // sweep line
+  rx.beginPath();
+  rx.moveTo(cx,cy);
+  rx.lineTo(cx+Math.cos(sweepAngle)*(cx-2),cy+Math.sin(sweepAngle)*(cx-2));
+  rx.strokeStyle='rgba(65,216,255,.8)'; rx.lineWidth=1.5; rx.stroke();
+  // dots
+  [3,5,6,7,8,9,10].forEach(i=>{
+    if(i>=BODIES.length) return;
+    const b=BODIES[i];
+    const a=phases[i]+t*.0001/b.period*Math.PI*2;
+    const d=Math.min(b.au/50,1)*(cx-5);
+    rx.beginPath(); rx.arc(cx+d*Math.cos(a),cy+d*Math.sin(a),2,0,Math.PI*2);
+    rx.fillStyle=b.color+'cc'; rx.fill();
+  });
+  // center cross
+  rx.strokeStyle='rgba(65,216,255,.5)'; rx.lineWidth=1;
+  rx.beginPath(); rx.moveTo(cx-5,cy); rx.lineTo(cx+5,cy); rx.stroke();
+  rx.beginPath(); rx.moveTo(cx,cy-5); rx.lineTo(cx,cy+5); rx.stroke();
+  // arrow
+  const arrA=sweepAngle+Math.PI*.5;
+  rx.save(); rx.translate(cx,cy); rx.rotate(arrA);
+  rx.beginPath(); rx.moveTo(0,-18); rx.lineTo(-5,0); rx.lineTo(5,0); rx.closePath();
+  rx.fillStyle='rgba(65,216,255,.9)'; rx.fill();
+  rx.restore();
+  // border
+  rx.beginPath(); rx.arc(cx,cy,cx-2,0,Math.PI*2);
+  rx.strokeStyle='rgba(26,154,255,.5)'; rx.lineWidth=2; rx.stroke();
+}
+
+// ── CLOCK ─────────────────────────────────────────────────────────────────────
+function updateClock(){
+  const d=new Date();
+  const pad=n=>(n<10?'0':'')+n;
+  document.getElementById('utcClock').textContent =
+    `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())} `+
+    `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())} UTC`;
+}
+setInterval(updateClock,1000);
+
+// ── CANVAS CLICK ──────────────────────────────────────────────────────────────
+canvas.addEventListener('click',e=>{
+  const rect=canvas.getBoundingClientRect();
+  const mx=e.clientX-rect.left, my=e.clientY-rect.top;
+  let best=-1, bestD=999;
+  BODIES.forEach((b,i)=>{
+    if(!b._x) return;
+    const d=Math.hypot(mx-b._x,my-b._y);
+    if(d<Math.max(b.r+8,14)&&d<bestD){ bestD=d; best=i; }
+  });
+  if(best>=0) selectBody(best);
+});
+
+// ── ANIMATE ───────────────────────────────────────────────────────────────────
+let lastT=0;
+function loop(t){
+  const dt=t-lastT; lastT=t;
+  simTime+=dt*.001; // 1 day/s realtime
+  drawFrame();
+  drawMinimap();
+  drawInfoMinimap();
+  drawOrbitMini();
+  drawRadar(t);
+  requestAnimationFrame(loop);
+}
+
+// init
+selectBody(3);
+drawPlanetIcon(document.getElementById('planetIcon'),BODIES[3]);
+drawPlanetIcon(document.getElementById('targetIcon'),BODIES[3]);
+updateInfo();
+requestAnimationFrame(loop);
+
+// tab interactions
+document.querySelectorAll('.nav-tab').forEach(t=>{
+  t.addEventListener('click',function(){ document.querySelectorAll('.nav-tab').forEach(x=>x.classList.remove('active')); this.classList.add('active'); });
+});
+document.querySelectorAll('.btm-tab,.btm-tabs2 .btm-tab').forEach(t=>{
+  t.addEventListener('click',function(){
+    const group=this.closest('.btm-tabs,.btm-tabs2');
+    group.querySelectorAll('.btm-tab').forEach(x=>x.classList.remove('active'));
+    this.classList.add('active');
+  });
+});
+document.querySelectorAll('.mode-btn').forEach(t=>{
+  t.addEventListener('click',function(){ document.querySelectorAll('.mode-btn').forEach(x=>x.classList.remove('active')); this.classList.add('active'); });
+});
+document.querySelectorAll('.time-btn').forEach(t=>{
+  t.addEventListener('click',function(){ document.querySelectorAll('.time-btn').forEach(x=>x.classList.remove('active')); this.classList.add('active'); });
+});
+</script>
+</body>
+</html>
